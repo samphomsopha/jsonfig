@@ -7,7 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"reflect"
-	"strings"
+	"time"
 )
 
 type Config struct {
@@ -16,9 +16,7 @@ type Config struct {
 	keyDelim     string
 }
 
-/*
-load config values this json file
-*/
+//load config values from this json file
 func (c *Config) LoadFile(fname string) error {
 	if _, err := os.Stat(fname); err != nil {
 		return err
@@ -36,9 +34,7 @@ func (c *Config) LoadFile(fname string) error {
 	return nil
 }
 
-/*
-load config in order, last in overrides first in values
-*/
+//load config in order, last in overrides first in values
 func (c *Config) LoadFiles(files []string) error {
 	for _, filename := range files {
 		if err := c.LoadFile(filename); err != nil {
@@ -48,32 +44,70 @@ func (c *Config) LoadFiles(files []string) error {
 	return nil
 }
 
-/*
-append json object to config
-*/
+//load configuration from json
 func (c *Config) AddValues(b []byte) error {
 	c.configFiles = append(c.configFiles, "setValues")
 	return c.setValues(b)
 }
 
-/*
-return Config.configValues
-*/
+//returns Config.configValues
 func (c *Config) RawValues() map[string]interface{} {
 	return c.configValues
 }
 
-/*
-get Config value by key
-*/
+//get Config value by key
 func (c *Config) Get(key string) interface{} {
+	val := c.get(key)
 
+	switch val.(type) {
+	case bool:
+		return cast.ToBool(val)
+	case string:
+		return cast.ToString(val)
+	case int64, int32, int16, int8, int:
+		return cast.ToInt(val)
+	case float64, float32:
+		return cast.ToFloat64(val)
+	case time.Time:
+		return cast.ToTime(val)
+	case time.Duration:
+		return cast.ToDuration(val)
+	case []string:
+		return val
+	}
+
+	return val
+}
+
+func (c *Config) get(key string) interface{} {
 	return c.find(key)
 }
 
-/*
-returns loaded files
-*/
+func (c *Config) GetString(key string) string {
+	return cast.ToString(c.get(key))
+}
+
+func (c *Config) GetBool(key string) bool {
+	return cast.ToBool(c.get(key))
+}
+
+func (c *Config) GetInt(key string) int {
+	return cast.ToInt(c.get(key))
+}
+
+func (c *Config) GetFloat64(key string) float64 {
+	return cast.ToFloat64(c.get(key))
+}
+
+func (c *Config) GetTime(key string) time.Time {
+	return cast.ToTime(c.get(key))
+}
+
+func (c *Config) GetDuration(key string) time.Duration {
+	return cast.ToDuration(c.get(key))
+}
+
+//returns loaded files
 func (c *Config) LoadedFiles() []string {
 	return c.configFiles
 }
@@ -81,40 +115,43 @@ func (c *Config) LoadedFiles() []string {
 func New() *Config {
 	c := new(Config)
 	c.keyDelim = "."
+	c.configValues = make(map[string]interface{})
 	return c
 }
 
 func (c *Config) setValues(b []byte) error {
-	if err := json.Unmarshal(b, &c.configValues); err != nil {
+	var newdata map[string]interface{}
+	if err := json.Unmarshal(b, &newdata); err != nil {
 		return err
 	}
+	c.expandKeysValues(newdata, "")
 
 	return nil
 }
 
-func (c *Config) find(key string) interface{} {
-	path := strings.Split(key, c.keyDelim)
-	val := c.configValues[key]
-
-	if val == nil {
-		source := c.find(path[0])
-		if source == nil {
-			return nil
-		}
-
-		if reflect.TypeOf(source).Kind() == reflect.Map {
-			val = c.searchMap(cast.ToStringMap(source), path[1:])
-		}
-	}
-
-	return val
+func (c *Config) SetValue(k string, v interface{}) {
+	c.configValues[k] = v
 }
 
-func (c *Config) searchMap(smap map[string]interface{}, path []string) interface{} {
-	key := path[0]
-	val := smap[key]
-	if len(path) != 1 {
-		return c.searchMap(cast.ToStringMap(val), path[1:])
+func (c *Config) expandKeysValues(vd map[string]interface{}, kkl string) {
+	defMap := make(map[string]interface{})
+	kl := ""
+	for k, v := range vd {
+		if kkl != "" {
+			kl = kkl + "." + k
+		} else {
+			kl = k
+		}
+		if reflect.TypeOf(v) == reflect.TypeOf(defMap) {
+			c.expandKeysValues(cast.ToStringMap(v), kl)
+		} else {
+			var val interface{} = v
+			c.configValues[kl] = val
+		}
 	}
+}
+
+func (c *Config) find(key string) interface{} {
+	val := c.configValues[key]
 	return val
 }
