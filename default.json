@@ -1,0 +1,15 @@
+{
+    "env": "default",
+    "version": 10.029,
+    "disqus": {
+        "api_key": "2109302",
+        "api_version": 1.3949,
+        "user": {
+        	"name": "Sammy",
+        	"addresses": {
+        		"ship" : "1020 ship",
+        		"bill" : "1029 bill"
+        	}
+        }
+    }
+}

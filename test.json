@@ -1,0 +1,15 @@
+{
+    "env": "test",
+    "version": 10.20,
+    "disqus": {
+        "api_key": "92838vk92kv",
+        "api_version": 1.0,
+        "user": {
+        	"name": "John Lee",
+        	"addresses": {
+        		"ship" : "1029 Ship Me Lane",
+        		"bill" : "1029 Bill Me Lane"
+        	}
+        }
+    }
+}
